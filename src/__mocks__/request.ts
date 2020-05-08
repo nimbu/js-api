@@ -7,7 +7,9 @@ export enum RequestMethod {
 }
 
 export const request = jest.fn(() => {
-  return {
-    id: 'mocked',
-  };
+  return new Response(
+    JSON.stringify({
+      id: 'mocked',
+    })
+  );
 });

@@ -23,7 +23,7 @@ describe('Request', () => {
       return DUMMY_STRING;
     });
     expect.assertions(4);
-    await request<typeof DUMMY>(RequestMethod.GET, '/', DEFAULT_OPTIONS);
+    await request(RequestMethod.GET, '/', DEFAULT_OPTIONS);
   });
 
   it('allows to specify a custom User Agent', async () => {
@@ -32,7 +32,7 @@ describe('Request', () => {
       return DUMMY_STRING;
     });
     expect.assertions(1);
-    await request<typeof DUMMY>(
+    await request(
       RequestMethod.GET,
       '/',
       Object.assign({}, DEFAULT_OPTIONS, { userAgent: 'custom' })
@@ -45,7 +45,7 @@ describe('Request', () => {
       return DUMMY_STRING;
     });
     expect.assertions(1);
-    await request<typeof DUMMY>(
+    await request(
       RequestMethod.GET,
       '/',
       Object.assign({}, DEFAULT_OPTIONS, { clientVersion: 'custom' })
@@ -58,36 +58,7 @@ describe('Request', () => {
       return DUMMY_STRING;
     });
     expect.assertions(1);
-    await request<typeof DUMMY>(RequestMethod.GET, '/', DEFAULT_OPTIONS);
-  });
-
-  it('parses the response as json', async () => {
-    fetchMock.once(DUMMY_STRING);
-    const result = await request<typeof DUMMY>(RequestMethod.GET, '/', DEFAULT_OPTIONS);
-
-    expect(result.id).toBe(DUMMY.id);
-  });
-
-  it('throws an exception on non-2xx responses', async () => {
-    fetchMock.once('', { status: 401 });
-    await expect(request(RequestMethod.GET, '/', DEFAULT_OPTIONS)).rejects.toThrowError(
-      'Unauthorized (401)'
-    );
-  });
-
-  it('returns an empty respons on 204', async () => {
-    fetchMock.once('', { status: 204 });
-
-    await expect(request(RequestMethod.DELETE, '/', DEFAULT_OPTIONS)).resolves.toBe(undefined);
-  });
-
-  it('stringifies the body', async () => {
-    fetchMock.once(async (req) => {
-      expect(`${req.body}`).toBe(DUMMY_STRING);
-      return DUMMY_STRING;
-    });
-    expect.assertions(1);
-    await request<typeof DUMMY>(RequestMethod.POST, '/', DEFAULT_OPTIONS, DUMMY);
+    await request(RequestMethod.GET, '/', DEFAULT_OPTIONS);
   });
 
   it('allows to specify a site', async () => {
@@ -96,10 +67,6 @@ describe('Request', () => {
       return DUMMY_STRING;
     });
     expect.assertions(1);
-    await request<typeof DUMMY>(
-      RequestMethod.GET,
-      '/',
-      Object.assign({}, DEFAULT_OPTIONS, { site: 'a_site' })
-    );
+    await request(RequestMethod.GET, '/', Object.assign({}, DEFAULT_OPTIONS, { site: 'a_site' }));
   });
 });

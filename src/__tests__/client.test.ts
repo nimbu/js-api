@@ -1,9 +1,12 @@
-import { request, RequestMethod } from '../request';
+import { request, RequestMethod, RequestOptions } from '../request';
 import { Client } from '../client';
 
 jest.mock('../request');
 
-const mockRequest = (request as unknown) as jest.Mock<typeof request>;
+const mockRequest = (request as unknown) as jest.Mock<
+  ReturnType<typeof request>,
+  Parameters<typeof request>
+>;
 
 describe('Client', () => {
   beforeEach(() => {
@@ -11,7 +14,7 @@ describe('Client', () => {
   });
 
   const client = new Client('my token');
-  it('gets the correct value', async () => {
+  it('gets the correct (parsed) value', async () => {
     const value = await client.get('/');
 
     expect(value).toMatchObject({ id: 'mocked' });
@@ -23,14 +26,15 @@ describe('Client', () => {
     expect(mockRequest).toBeCalledWith(
       expect.anything(),
       expect.anything(),
-      expect.objectContaining({ token: 'my token' })
+      expect.objectContaining({ token: 'my token' }),
+      undefined
     );
   });
 
   it('passed the correct path', async () => {
     await client.get('/');
 
-    expect(mockRequest).toBeCalledWith(expect.anything(), '/', expect.anything());
+    expect(mockRequest).toBeCalledWith(expect.anything(), '/', expect.anything(), undefined);
   });
 
   it('passes on the request options', async () => {
@@ -51,7 +55,8 @@ describe('Client', () => {
         clientVersion: 'custom_client_version',
         host: 'http://api.nimbu.test',
         site: 'my_site',
-      })
+      }),
+      undefined
     );
   });
 
@@ -59,7 +64,12 @@ describe('Client', () => {
     it('uses the correct method', async () => {
       await client.get('/');
 
-      expect(mockRequest).toBeCalledWith(RequestMethod.GET, expect.anything(), expect.anything());
+      expect(mockRequest).toBeCalledWith(
+        RequestMethod.GET,
+        expect.anything(),
+        expect.anything(),
+        undefined
+      );
     });
   });
 
@@ -78,9 +88,14 @@ describe('Client', () => {
     it('passes on the body', async () => {
       await client.post('/', { foo: 'bar' });
 
-      expect(mockRequest).toBeCalledWith(expect.anything(), expect.anything(), expect.anything(), {
-        foo: 'bar',
-      });
+      expect(mockRequest).toBeCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        JSON.stringify({
+          foo: 'bar',
+        })
+      );
     });
   });
 
@@ -99,9 +114,14 @@ describe('Client', () => {
     it('passes on the body', async () => {
       await client.put('/', { foo: 'bar' });
 
-      expect(mockRequest).toBeCalledWith(expect.anything(), expect.anything(), expect.anything(), {
-        foo: 'bar',
-      });
+      expect(mockRequest).toBeCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        JSON.stringify({
+          foo: 'bar',
+        })
+      );
     });
   });
 
@@ -120,9 +140,14 @@ describe('Client', () => {
     it('passes on the body', async () => {
       await client.patch('/', { foo: 'bar' });
 
-      expect(mockRequest).toBeCalledWith(expect.anything(), expect.anything(), expect.anything(), {
-        foo: 'bar',
-      });
+      expect(mockRequest).toBeCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        JSON.stringify({
+          foo: 'bar',
+        })
+      );
     });
   });
 
@@ -135,8 +160,55 @@ describe('Client', () => {
       expect(mockRequest).toBeCalledWith(
         RequestMethod.DELETE,
         expect.anything(),
-        expect.anything()
+        expect.anything(),
+        undefined
       );
+    });
+  });
+
+  describe('request', () => {
+    it('throws an exception on non-2xx responses', async () => {
+      mockRequest.mockImplementationOnce(async () => {
+        return new Response('', {
+          status: 401,
+          statusText: 'Unauthorized',
+        });
+      });
+      await expect(client.request(RequestMethod.GET, '/')).rejects.toThrowError(
+        'Unauthorized (401)'
+      );
+    });
+
+    it('returns an empty respons on 204', async () => {
+      mockRequest.mockImplementationOnce(async () => {
+        return new Response('', {
+          status: 204,
+        });
+      });
+
+      await expect(client.request(RequestMethod.DELETE, '/')).resolves.toBe(undefined);
+    });
+
+    it('stringifies the body', async () => {
+      const DUMMY = { foo: 'bar' };
+      mockRequest.mockImplementationOnce(
+        async (
+          method: RequestMethod,
+          path: string,
+          options: RequestOptions,
+          body?: RequestInit['body']
+        ) => {
+          expect(body).toBe(JSON.stringify(DUMMY));
+          return new Response(
+            JSON.stringify({
+              id: 'mocked',
+            })
+          );
+        }
+      );
+
+      expect.assertions(1);
+      await client.request<{ id: string }>(RequestMethod.POST, '/', DUMMY);
     });
   });
 });

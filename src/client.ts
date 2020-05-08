@@ -1,4 +1,4 @@
-import { request, RequestMethod, ResponseBody, RequestBody, RequestOptions } from './request';
+import { request, RequestMethod, RequestOptions } from './request';
 
 export type ClientOptions = {
   host?: string;
@@ -7,6 +7,8 @@ export type ClientOptions = {
   clientVersion?: string;
 };
 
+export type RequestBody = unknown;
+
 export class Client {
   #options: RequestOptions;
 
@@ -14,23 +16,43 @@ export class Client {
     this.#options = Object.assign({}, options, { token });
   }
 
-  get<T extends ResponseBody>(path: string): Promise<T> {
-    return request<T>(RequestMethod.GET, path, this.#options);
+  fetch(method: RequestMethod, path: string, body?: RequestInit['body']): Promise<Response> {
+    return request(method, path, this.#options, body);
   }
 
-  post<T extends ResponseBody>(path: string, body: RequestBody): Promise<T> {
-    return request<T>(RequestMethod.POST, path, this.#options, body);
+  request(method: RequestMethod.DELETE, path: string): Promise<void>;
+  request<T>(method: RequestMethod, path: string, body?: RequestBody): Promise<T>;
+  async request<T>(method: RequestMethod, path: string, body?: RequestBody): Promise<T | void> {
+    const requestBody = body != null ? JSON.stringify(body) : undefined;
+    const response = await this.fetch(method, path, requestBody);
+    if (response.ok) {
+      if (response.status !== 204) {
+        return response.json() as Promise<T>;
+      } else {
+        return Promise.resolve();
+      }
+    } else {
+      throw new Error(`${response.statusText} (${response.status})`);
+    }
   }
 
-  put<T extends ResponseBody>(path: string, body: RequestBody): Promise<T> {
-    return request<T>(RequestMethod.PUT, path, this.#options, body);
+  get<T>(path: string): Promise<T> {
+    return this.request<T>(RequestMethod.GET, path);
   }
 
-  patch<T extends ResponseBody>(path: string, body: RequestBody): Promise<T> {
-    return request<T>(RequestMethod.PATCH, path, this.#options, body);
+  post<T>(path: string, body: RequestBody): Promise<T> {
+    return this.request<T>(RequestMethod.POST, path, body);
+  }
+
+  put<T>(path: string, body: RequestBody): Promise<T> {
+    return this.request<T>(RequestMethod.PUT, path, body);
+  }
+
+  patch<T>(path: string, body: RequestBody): Promise<T> {
+    return this.request<T>(RequestMethod.PATCH, path, body);
   }
 
   delete(path: string): Promise<void> {
-    return request(RequestMethod.DELETE, path, this.#options);
+    return this.request(RequestMethod.DELETE, path);
   }
 }

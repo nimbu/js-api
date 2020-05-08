@@ -29,23 +29,12 @@ const DEFAULT_OPTIONS: RequestOptionsWithDefault = {
 export type RequestBody = Record<string, unknown> | Record<string, unknown>[];
 export type ResponseBody = Record<string, unknown> | Record<string, unknown>[];
 
-export async function request(
-  method: RequestMethod,
-  path: string,
-  options: RequestOptions
-): Promise<void>;
-export async function request<T extends ResponseBody>(
-  method: RequestMethod,
-  path: string,
-  options: RequestOptions,
-  body?: RequestBody
-): Promise<T>;
-export async function request<T>(
+export function request(
   method: RequestMethod,
   path: string,
   _options: RequestOptions,
-  body?: RequestBody
-): Promise<T | void> {
+  body?: RequestInit['body']
+): Promise<Response> {
   const options = Object.assign({}, DEFAULT_OPTIONS, _options);
   const url = `${options.host}${path}`;
 
@@ -64,20 +53,10 @@ export async function request<T>(
     headers['X-Nimbu-Site'] = options.site;
   }
 
-  const response = await fetch(url, {
+  return fetch(url, {
     method,
     mode: 'cors',
     headers,
-    body: body != null ? JSON.stringify(body) : undefined,
+    body,
   });
-
-  if (response.ok) {
-    if (response.status !== 204) {
-      return response.json() as Promise<T>;
-    } else {
-      return Promise.resolve();
-    }
-  } else {
-    throw new Error(`${response.statusText} (${response.status})`);
-  }
 }
