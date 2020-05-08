@@ -1,4 +1,5 @@
 import { request, RequestMethod, RequestOptions } from './request';
+import { Customer, CurrentCustomer } from 'types';
 
 export type ClientOptions = {
   host?: string;
@@ -54,5 +55,16 @@ export class Client {
 
   delete(path: string): Promise<void> {
     return this.request(RequestMethod.DELETE, path);
+  }
+
+  async login(email: string, password: string): Promise<CurrentCustomer> {
+    const customer = await this.post<CurrentCustomer>('/customers/login', {
+      username: email,
+      password,
+    });
+
+    this.#options.sessionToken = customer.session_token;
+
+    return customer;
   }
 }

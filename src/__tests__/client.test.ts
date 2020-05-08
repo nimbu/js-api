@@ -211,4 +211,65 @@ describe('Client', () => {
       await client.request<{ id: string }>(RequestMethod.POST, '/', DUMMY);
     });
   });
+
+  describe('login', () => {
+    /* eslint-disable @typescript-eslint/camelcase */
+    const DUMMY_LOGIN_RESPONSE = {
+      created_at: '2020-05-08T12:25:04.021Z',
+      email: 'user@example.com',
+      firstname: 'John',
+      id: '1',
+      language: 'en',
+      lastname: 'Doe',
+      name: 'John Doe',
+      number: '202000000001',
+      password_updated_at: '2020-05-08T12:25:04.021Z',
+      session_token: 'dummy-session-token',
+      slug: 'john-doe',
+      status: 'active',
+      updated_at: '2020-05-08T12:25:04.021Z',
+    };
+    /* eslint-enable @typescript-eslint/camelcase */
+
+    it('posts the email and password to /customers/login', async () => {
+      mockRequest.mockImplementationOnce(
+        async (
+          method: RequestMethod,
+          path: string,
+          options: RequestOptions,
+          body?: RequestInit['body']
+        ) => {
+          expect(method).toBe(RequestMethod.POST);
+          expect(path).toBe('/customers/login');
+          expect(body).toBe(JSON.stringify({ username: 'user@example.com', password: 'dummy' }));
+          return new Response(JSON.stringify(DUMMY_LOGIN_RESPONSE));
+        }
+      );
+
+      expect.assertions(3);
+      await client.login('user@example.com', 'dummy');
+    });
+
+    it('uses the session token in subsequent requests', async () => {
+      mockRequest
+        .mockImplementationOnce(async () => {
+          return new Response(JSON.stringify(DUMMY_LOGIN_RESPONSE));
+        })
+        .mockImplementationOnce(
+          async (
+            method: RequestMethod,
+            path: string,
+            options: RequestOptions,
+            body?: RequestInit['body']
+          ) => {
+            expect(options.sessionToken).toBe(DUMMY_LOGIN_RESPONSE.session_token);
+            return new Response(JSON.stringify({}));
+          }
+        );
+
+      expect.assertions(1);
+      await client.login('user@example.com', 'dummy');
+      client.get('/');
+    });
+  });
 });
