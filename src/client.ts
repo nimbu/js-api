@@ -93,4 +93,8 @@ export class Client {
     // make it async
     this.#options.sessionToken = undefined;
   }
+
+  async requestPasswordReset(email: string): Promise<void> {
+    await this.post('/customers/password/reset', { email });
+  }
 }

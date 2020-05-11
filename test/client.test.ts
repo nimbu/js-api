@@ -361,4 +361,16 @@ describe('Client', () => {
       );
     });
   });
+
+  describe('request password reset', () => {
+    it('posts the email to /customers/password/reset', () => {
+      expect(client.requestPasswordReset('john.doe@example.com')).resolves.toBe(undefined);
+      expect(mockRequest).toBeCalledWith(
+        RequestMethod.POST,
+        '/customers/password/reset',
+        expect.anything(),
+        JSON.stringify({ email: 'john.doe@example.com' })
+      );
+    });
+  });
 });
