@@ -1,5 +1,5 @@
 import { request, RequestMethod, RequestOptions } from './request';
-import { Customer, CurrentCustomer } from 'types';
+import { CurrentCustomer, CustomFields } from './types';
 
 export type ClientOptions = {
   host?: string;
@@ -57,8 +57,11 @@ export class Client {
     return this.request(RequestMethod.DELETE, path);
   }
 
-  async login(email: string, password: string): Promise<CurrentCustomer> {
-    const customer = await this.post<CurrentCustomer>('/customers/login', {
+  async login<T extends CustomFields>(
+    email: string,
+    password: string
+  ): Promise<CurrentCustomer<T>> {
+    const customer = await this.post<CurrentCustomer<T>>('/customers/login', {
       username: email,
       password,
     });

@@ -1,4 +1,6 @@
-import { version } from '../package.json';
+// import { version } from '../package.json';
+
+const version = require('../package.json').version;
 
 export enum RequestMethod {
   GET = 'GET',

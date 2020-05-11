@@ -20,9 +20,10 @@
     "noImplicitReturns": true,
     "noImplicitThis": true,
     "baseUrl": "src",
+    "rootDir": "src",
     "declaration": true,
     "outDir": "dist"
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "**/__tests__/*"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "**/__tests__/*", "**/__mocks__/*"]
 }

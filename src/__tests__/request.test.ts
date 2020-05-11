@@ -1,6 +1,8 @@
 import { request, RequestMethod, RequestOptions } from '../request';
 import fetchMock from 'jest-fetch-mock';
-import { version } from '../../package.json';
+// import { version } from '../../package.json';
+
+const version = require('../../package.json').version;
 
 fetchMock.mockReject(new Error('Unexpected error'));
 
