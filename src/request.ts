@@ -55,6 +55,10 @@ export function request(
     headers['X-Nimbu-Site'] = options.site;
   }
 
+  if (options.sessionToken != null) {
+    headers['X-Nimbu-Session-Token'] = options.sessionToken;
+  }
+
   return fetch(url, {
     method,
     mode: 'cors',

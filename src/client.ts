@@ -1,5 +1,5 @@
 import { request, RequestMethod, RequestOptions } from './request';
-import { CurrentCustomer, CustomFields } from './types';
+import { CurrentCustomer, CustomFields, Customer } from './types';
 
 export type ClientOptions = {
   host?: string;
@@ -69,5 +69,22 @@ export class Client {
     this.#options.sessionToken = customer.session_token;
 
     return customer;
+  }
+
+  async validateSession<T extends CustomFields>(sessionToken: string): Promise<Customer<T> | undefined> {
+    this.#options.sessionToken = sessionToken;
+    const response = await this.fetch(RequestMethod.GET, '/customers/me');
+    if (response.ok) {
+      return response.json() as Promise<Customer<T>>;
+    } else {
+      this.#options.sessionToken = undefined;
+      if (response.status === 401) {
+        // Unauthorized: expected if session is no longer valid
+        return undefined;
+      } else {
+        // We got an another error -> throw
+        throw new Error(`${response.statusText} (${response.status})`);
+      }
+    }
   }
 }

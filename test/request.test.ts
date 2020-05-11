@@ -70,4 +70,17 @@ describe('Request', () => {
     expect.assertions(1);
     await request(RequestMethod.GET, '/', Object.assign({}, DEFAULT_OPTIONS, { site: 'a_site' }));
   });
+
+  it('allows to specify a session token', async () => {
+    fetchMock.once(async req => {
+      expect(req.headers.get('X-Nimbu-Session-Token')).toBe('dummy-session-token');
+      return DUMMY_STRING;
+    });
+    expect.assertions(1);
+    await request(
+      RequestMethod.GET,
+      '/',
+      Object.assign({}, DEFAULT_OPTIONS, { sessionToken: 'dummy-session-token' })
+    );
+  });
 });

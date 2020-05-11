@@ -176,23 +176,27 @@ describe('Client', () => {
 
   describe('request', () => {
     it('throws an exception on non-2xx responses', async () => {
-      mockRequest.mockImplementationOnce(async () => {
-        return new Response('', {
-          status: 401,
-          statusText: 'Unauthorized',
-        });
-      });
+      mockRequest.mockReturnValueOnce(
+        Promise.resolve(
+          new Response('', {
+            status: 401,
+            statusText: 'Unauthorized',
+          })
+        )
+      );
       await expect(client.request(RequestMethod.GET, '/')).rejects.toThrowError(
         'Unauthorized (401)'
       );
     });
 
     it('returns an empty respons on 204', async () => {
-      mockRequest.mockImplementationOnce(async () => {
-        return new Response('', {
-          status: 204,
-        });
-      });
+      mockRequest.mockReturnValueOnce(
+        Promise.resolve(
+          new Response('', {
+            status: 204,
+          })
+        )
+      );
 
       await expect(client.request(RequestMethod.DELETE, '/')).resolves.toBe(undefined);
     });
@@ -260,9 +264,7 @@ describe('Client', () => {
 
     it('uses the session token in subsequent requests', async () => {
       mockRequest
-        .mockImplementationOnce(async () => {
-          return new Response(JSON.stringify(DUMMY_LOGIN_RESPONSE));
-        })
+        .mockReturnValueOnce(Promise.resolve(new Response(JSON.stringify(DUMMY_LOGIN_RESPONSE))))
         .mockImplementationOnce(
           async (method: RequestMethod, path: string, options: RequestOptions) => {
             expect(options.sessionToken).toBe(DUMMY_LOGIN_RESPONSE.session_token);
@@ -273,6 +275,90 @@ describe('Client', () => {
       expect.assertions(1);
       await client.login('user@example.com', 'dummy');
       client.get('/');
+    });
+
+    it('returns the current customer', async () => {
+      mockRequest.mockReturnValueOnce(
+        Promise.resolve(new Response(JSON.stringify(DUMMY_LOGIN_RESPONSE)))
+      );
+
+      expect(client.login('user@example.com', 'dummy')).resolves.toMatchObject(
+        DUMMY_LOGIN_RESPONSE
+      );
+    });
+  });
+
+  describe('validateSession', () => {
+    /* eslint-disable @typescript-eslint/camelcase */
+    const DUMMY_CUSTOMERS_ME_RESPONSE = {
+      created_at: '2020-05-08T12:25:04.021Z',
+      email: 'user@example.com',
+      firstname: 'John',
+      id: '1',
+      language: 'en',
+      lastname: 'Doe',
+      name: 'John Doe',
+      number: '202000000001',
+      password_updated_at: '2020-05-08T12:25:04.021Z',
+      slug: 'john-doe',
+      status: 'active',
+      updated_at: '2020-05-08T12:25:04.021Z',
+    };
+    /* eslint-enable @typescript-eslint/camelcase */
+
+    it('uses the session token to request /customers/me', async () => {
+      mockRequest.mockImplementationOnce(
+        async (method: RequestMethod, path: string, options: RequestOptions) => {
+          expect(method).toBe(RequestMethod.GET);
+          expect(path).toBe('/customers/me');
+          expect(options.sessionToken).toBe('dummy-session-token');
+          return new Response(JSON.stringify(DUMMY_CUSTOMERS_ME_RESPONSE));
+        }
+      );
+
+      expect.assertions(3);
+      await client.validateSession('dummy-session-token');
+    });
+
+    it('uses the session token in subsequent requests', async () => {
+      mockRequest
+        .mockReturnValueOnce(
+          Promise.resolve(new Response(JSON.stringify(DUMMY_CUSTOMERS_ME_RESPONSE)))
+        )
+        .mockImplementationOnce(
+          async (method: RequestMethod, path: string, options: RequestOptions) => {
+            expect(options.sessionToken).toBe('dummy-session-token');
+            return new Response(JSON.stringify({}));
+          }
+        );
+
+      expect.assertions(1);
+      await client.validateSession('dummy-session-token');
+      client.get('/');
+    });
+
+    it('returns the customer', () => {
+      mockRequest.mockReturnValueOnce(
+        Promise.resolve(new Response(JSON.stringify(DUMMY_CUSTOMERS_ME_RESPONSE)))
+      );
+
+      expect(client.validateSession('dummy-session-token')).resolves.toMatchObject(
+        DUMMY_CUSTOMERS_ME_RESPONSE
+      );
+    });
+
+    it('return undefined for an invalid session', () => {
+      mockRequest.mockReturnValueOnce(Promise.resolve(new Response('', { status: 401 })));
+
+      expect(client.validateSession('wrong-session-token')).resolves.toBe(undefined);
+    });
+
+    it('throws an error on other errors', () => {
+      mockRequest.mockReturnValueOnce(Promise.resolve(new Response('', { status: 500 })));
+
+      expect(client.validateSession('dummy-session-token')).rejects.toThrowError(
+        'Internal Server Error (500)'
+      );
     });
   });
 });
