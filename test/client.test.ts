@@ -1,12 +1,20 @@
-import { request, RequestMethod, RequestOptions } from '../request';
-import { Client } from '../client';
+import { request, RequestMethod, RequestOptions } from '../src/request';
+import { Client } from '../src/client';
 
-jest.mock('../request');
+jest.mock('../src/request');
 
 const mockRequest = (request as unknown) as jest.Mock<
   ReturnType<typeof request>,
   Parameters<typeof request>
 >;
+
+mockRequest.mockImplementation(async () => {
+  return new Response(
+    JSON.stringify({
+      id: 'mocked',
+    })
+  );
+});
 
 describe('Client', () => {
   beforeEach(() => {
@@ -256,12 +264,7 @@ describe('Client', () => {
           return new Response(JSON.stringify(DUMMY_LOGIN_RESPONSE));
         })
         .mockImplementationOnce(
-          async (
-            method: RequestMethod,
-            path: string,
-            options: RequestOptions,
-            body?: RequestInit['body']
-          ) => {
+          async (method: RequestMethod, path: string, options: RequestOptions) => {
             expect(options.sessionToken).toBe(DUMMY_LOGIN_RESPONSE.session_token);
             return new Response(JSON.stringify({}));
           }
