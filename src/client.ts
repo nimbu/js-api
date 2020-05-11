@@ -87,4 +87,10 @@ export class Client {
       }
     }
   }
+
+  async logout(): Promise<void> {
+    // NOTE: In the future this might invalidate the session token in nimbu ->
+    // make it async
+    this.#options.sessionToken = undefined;
+  }
 }
