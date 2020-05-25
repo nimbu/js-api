@@ -1,7 +1,9 @@
 import { request, RequestMethod, RequestOptions } from './request';
-import { CurrentCustomer, CustomFields, Customer } from './types';
+import { CustomFields, Customer } from './types';
+import { Auth } from './auth';
 
 export type ClientOptions = {
+  remember?: boolean;
   host?: string;
   site?: string;
   userAgent?: string;
@@ -11,14 +13,34 @@ export type ClientOptions = {
 export type RequestBody = unknown;
 
 export class Client {
-  #options: RequestOptions;
+  private auth: Auth;
+  private requestOptions: RequestOptions;
 
-  constructor(token: string, options: ClientOptions = {}) {
-    this.#options = Object.assign({}, options, { token });
+  constructor(clientId: string, token?: string, options: ClientOptions = {}) {
+    this.auth = new Auth(clientId, {
+      refreshToken: token,
+      requestOptions: {
+        host: options.host,
+        userAgent: options.userAgent,
+        clientVersion: options.clientVersion,
+      },
+      remember: options.remember,
+    });
+    this.requestOptions = {
+      host: options.host,
+      site: options.site,
+      userAgent: options.userAgent,
+      clientVersion: options.clientVersion,
+    };
   }
 
-  fetch(method: RequestMethod, path: string, body?: RequestInit['body']): Promise<Response> {
-    return request(method, path, this.#options, body);
+  async fetch(method: RequestMethod, path: string, body?: RequestInit['body']): Promise<Response> {
+    const token = await this.auth.ensureFresh();
+    if (token != null) {
+      return request(method, path, Object.assign({}, this.requestOptions, { token }), body);
+    } else {
+      throw new Error('Could not authenticate.');
+    }
   }
 
   request(method: RequestMethod.DELETE, path: string): Promise<void>;
@@ -33,6 +55,7 @@ export class Client {
         return Promise.resolve();
       }
     } else {
+      // TODO: also handle 422 - Unprocessable Entity
       throw new Error(`${response.statusText} (${response.status})`);
     }
   }
@@ -57,41 +80,17 @@ export class Client {
     return this.request(RequestMethod.DELETE, path);
   }
 
-  async login<T extends CustomFields>(
-    email: string,
-    password: string
-  ): Promise<CurrentCustomer<T>> {
-    const customer = await this.post<CurrentCustomer<T>>('/customers/login', {
-      username: email,
-      password,
-    });
-
-    this.#options.sessionToken = customer.session_token;
-
-    return customer;
+  async login(email: string, password: string, remember = false): Promise<boolean> {
+    const success = await this.auth.login(email, password, remember);
+    return success;
   }
 
-  async validateSession<T extends CustomFields>(sessionToken: string): Promise<Customer<T> | undefined> {
-    this.#options.sessionToken = sessionToken;
-    const response = await this.fetch(RequestMethod.GET, '/customers/me');
-    if (response.ok) {
-      return response.json() as Promise<Customer<T>>;
-    } else {
-      this.#options.sessionToken = undefined;
-      if (response.status === 401) {
-        // Unauthorized: expected if session is no longer valid
-        return undefined;
-      } else {
-        // We got an another error -> throw
-        throw new Error(`${response.statusText} (${response.status})`);
-      }
-    }
+  async me<T extends CustomFields>(): Promise<Customer<T>> {
+    return this.get<Customer<T>>('/customers/me');
   }
 
   async logout(): Promise<void> {
-    // NOTE: In the future this might invalidate the session token in nimbu ->
-    // make it async
-    this.#options.sessionToken = undefined;
+    return this.auth.logout();
   }
 
   async requestPasswordReset(email: string): Promise<void> {

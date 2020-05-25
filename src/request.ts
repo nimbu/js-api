@@ -17,9 +17,9 @@ type RequestOptionsWithDefault = {
 };
 
 export type RequestOptions = {
-  token: string;
-  sessionToken?: string;
+  token?: string;
   site?: string;
+  contentType?: string;
 } & Partial<RequestOptionsWithDefault>;
 
 const DEFAULT_OPTIONS: RequestOptionsWithDefault = {
@@ -31,32 +31,39 @@ const DEFAULT_OPTIONS: RequestOptionsWithDefault = {
 export type RequestBody = Record<string, unknown> | Record<string, unknown>[];
 export type ResponseBody = Record<string, unknown> | Record<string, unknown>[];
 
+function mergeDefaults(_options: RequestOptions): RequestOptions & RequestOptionsWithDefault {
+  return Object.assign({}, _options, {
+    host: _options.host || DEFAULT_OPTIONS.host,
+    userAgent: _options.userAgent || DEFAULT_OPTIONS.userAgent,
+    clientVersion: _options.clientVersion || DEFAULT_OPTIONS.clientVersion,
+  });
+}
+
 export function request(
   method: RequestMethod,
   path: string,
   _options: RequestOptions,
   body?: RequestInit['body']
 ): Promise<Response> {
-  const options = Object.assign({}, DEFAULT_OPTIONS, _options);
+  const options = mergeDefaults(_options);
   const url = `${options.host}${path}`;
 
   const headers: RequestInit['headers'] = {
-    Authorization: options.token,
     'User-Agent': options.userAgent,
     Accept: 'application/json',
     'X-Nimbu-Client-Version': options.clientVersion,
   };
 
-  if (body != null) {
-    headers['Content-Type'] = 'application/json';
+  if (options.token != null) {
+    headers['Authorization'] = `Bearer ${options.token}`;
+  }
+
+  if (body != null && !(body instanceof FormData)) {
+    headers['Content-Type'] = options.contentType || 'application/json';
   }
 
   if (options.site != null) {
     headers['X-Nimbu-Site'] = options.site;
-  }
-
-  if (options.sessionToken != null) {
-    headers['X-Nimbu-Session-Token'] = options.sessionToken;
   }
 
   return fetch(url, {

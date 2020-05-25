@@ -2,12 +2,10 @@ import { request, RequestMethod, RequestOptions } from '../src/request';
 import { Client } from '../src/client';
 
 jest.mock('../src/request');
-
 const mockRequest = (request as unknown) as jest.Mock<
   ReturnType<typeof request>,
   Parameters<typeof request>
 >;
-
 mockRequest.mockImplementation(async () => {
   return new Response(
     JSON.stringify({
@@ -16,16 +14,38 @@ mockRequest.mockImplementation(async () => {
   );
 });
 
+const mockEnsureFresh = jest.fn(async () => {
+  return 'dummy-token';
+});
+const mockLogin = jest.fn(async () => false);
+const mockLogout = jest.fn();
+
+jest.mock('../src/auth', () => {
+  return {
+    Auth: jest.fn().mockImplementation(function() {
+      return { ensureFresh: mockEnsureFresh, login: mockLogin, logout: mockLogout };
+    }),
+  };
+});
+
 describe('Client', () => {
   beforeEach(() => {
     mockRequest.mockClear();
+    mockEnsureFresh.mockClear();
+    mockLogin.mockClear();
+    mockLogout.mockClear();
   });
 
-  const client = new Client('my token');
+  const client = new Client('my client id');
   it('gets the correct (parsed) value', async () => {
     const value = await client.get('/');
 
     expect(value).toMatchObject({ id: 'mocked' });
+  });
+
+  it('makes sure there is a fresh token', async () => {
+    await client.get('/');
+    expect(mockEnsureFresh).toBeCalledTimes(1);
   });
 
   it('sets the token for the request', async () => {
@@ -34,7 +54,7 @@ describe('Client', () => {
     expect(mockRequest).toBeCalledWith(
       expect.anything(),
       expect.anything(),
-      expect.objectContaining({ token: 'my token' }),
+      expect.objectContaining({ token: 'dummy-token' }),
       undefined
     );
   });
@@ -46,7 +66,7 @@ describe('Client', () => {
   });
 
   it('passes on the request options', async () => {
-    const client = new Client('my token', {
+    const client = new Client('my client id', undefined, {
       userAgent: 'custom_user_agent',
       clientVersion: 'custom_client_version',
       host: 'http://api.nimbu.test',
@@ -160,8 +180,6 @@ describe('Client', () => {
   });
 
   describe('delete', () => {
-    const client = new Client('my token');
-
     it('uses the correct method', async () => {
       await client.delete('/');
 
@@ -225,70 +243,30 @@ describe('Client', () => {
   });
 
   describe('login', () => {
-    /* eslint-disable @typescript-eslint/camelcase */
-    const DUMMY_LOGIN_RESPONSE = {
-      created_at: '2020-05-08T12:25:04.021Z',
-      email: 'user@example.com',
-      firstname: 'John',
-      id: '1',
-      language: 'en',
-      lastname: 'Doe',
-      name: 'John Doe',
-      number: '202000000001',
-      password_updated_at: '2020-05-08T12:25:04.021Z',
-      session_token: 'dummy-session-token',
-      slug: 'john-doe',
-      status: 'active',
-      updated_at: '2020-05-08T12:25:04.021Z',
-    };
-    /* eslint-enable @typescript-eslint/camelcase */
-
-    it('posts the email and password to /customers/login', async () => {
-      mockRequest.mockImplementationOnce(
-        async (
-          method: RequestMethod,
-          path: string,
-          options: RequestOptions,
-          body?: RequestInit['body']
-        ) => {
-          expect(method).toBe(RequestMethod.POST);
-          expect(path).toBe('/customers/login');
-          expect(body).toBe(JSON.stringify({ username: 'user@example.com', password: 'dummy' }));
-          return new Response(JSON.stringify(DUMMY_LOGIN_RESPONSE));
-        }
-      );
-
-      expect.assertions(3);
-      await client.login('user@example.com', 'dummy');
+    it('calls login on Auth', async () => {
+      await expect(client.login('user@example.com', 'dummy')).resolves.toBe(false);
+      expect(mockLogin).toBeCalledWith('user@example.com', 'dummy', false);
     });
 
-    it('uses the session token in subsequent requests', async () => {
-      mockRequest
-        .mockReturnValueOnce(Promise.resolve(new Response(JSON.stringify(DUMMY_LOGIN_RESPONSE))))
-        .mockImplementationOnce(
-          async (method: RequestMethod, path: string, options: RequestOptions) => {
-            expect(options.sessionToken).toBe(DUMMY_LOGIN_RESPONSE.session_token);
-            return new Response(JSON.stringify({}));
-          }
-        );
-
-      expect.assertions(1);
-      await client.login('user@example.com', 'dummy');
-      client.get('/');
+    it('it passed remember to Auth', async () => {
+      await client.login('user@example.com', 'dummy', true);
+      expect(mockLogin).toBeCalledWith('user@example.com', 'dummy', true);
     });
 
-    it('returns the current customer', async () => {
-      mockRequest.mockReturnValueOnce(
-        Promise.resolve(new Response(JSON.stringify(DUMMY_LOGIN_RESPONSE)))
-      );
-
-      expect(client.login('user@example.com', 'dummy')).resolves.toMatchObject(
-        DUMMY_LOGIN_RESPONSE
-      );
+    it('correctly passed authentication result', async () => {
+      mockLogin.mockImplementationOnce(async () => true);
+      expect(client.login('user@example.com', 'dummy')).resolves.toBe(true);
     });
   });
 
-  describe('validateSession', () => {
+  describe('logout', () => {
+    it('calls logout on Auth', async () => {
+      await client.logout();
+      expect(mockLogout).toBeCalled();
+    });
+  });
+
+  describe('me', () => {
     /* eslint-disable @typescript-eslint/camelcase */
     const DUMMY_CUSTOMERS_ME_RESPONSE = {
       created_at: '2020-05-08T12:25:04.021Z',
@@ -306,65 +284,41 @@ describe('Client', () => {
     };
     /* eslint-enable @typescript-eslint/camelcase */
 
-    it('uses the session token to request /customers/me', async () => {
-      mockRequest.mockImplementationOnce(
-        async (method: RequestMethod, path: string, options: RequestOptions) => {
-          expect(method).toBe(RequestMethod.GET);
-          expect(path).toBe('/customers/me');
-          expect(options.sessionToken).toBe('dummy-session-token');
-          return new Response(JSON.stringify(DUMMY_CUSTOMERS_ME_RESPONSE));
-        }
-      );
+    it('it requests /customers/me', async () => {
+      mockRequest.mockImplementationOnce(async (method: RequestMethod, path: string) => {
+        expect(method).toBe(RequestMethod.GET);
+        expect(path).toBe('/customers/me');
+        return new Response(JSON.stringify(DUMMY_CUSTOMERS_ME_RESPONSE));
+      });
 
-      expect.assertions(3);
-      await client.validateSession('dummy-session-token');
+      expect.assertions(2);
+      await client.me();
     });
 
-    it('uses the session token in subsequent requests', async () => {
-      mockRequest
-        .mockReturnValueOnce(
-          Promise.resolve(new Response(JSON.stringify(DUMMY_CUSTOMERS_ME_RESPONSE)))
-        )
-        .mockImplementationOnce(
-          async (method: RequestMethod, path: string, options: RequestOptions) => {
-            expect(options.sessionToken).toBe('dummy-session-token');
-            return new Response(JSON.stringify({}));
-          }
-        );
-
-      expect.assertions(1);
-      await client.validateSession('dummy-session-token');
-      client.get('/');
-    });
-
-    it('returns the customer', () => {
+    it('returns the customer', async () => {
       mockRequest.mockReturnValueOnce(
         Promise.resolve(new Response(JSON.stringify(DUMMY_CUSTOMERS_ME_RESPONSE)))
       );
 
-      expect(client.validateSession('dummy-session-token')).resolves.toMatchObject(
-        DUMMY_CUSTOMERS_ME_RESPONSE
-      );
+      await expect(client.me()).resolves.toMatchObject(DUMMY_CUSTOMERS_ME_RESPONSE);
     });
 
-    it('return undefined for an invalid session', () => {
+    it('throw an error for an invalid session', () => {
       mockRequest.mockReturnValueOnce(Promise.resolve(new Response('', { status: 401 })));
 
-      expect(client.validateSession('wrong-session-token')).resolves.toBe(undefined);
+      expect(client.me()).rejects.toThrowError('Unauthorized (401)');
     });
 
     it('throws an error on other errors', () => {
       mockRequest.mockReturnValueOnce(Promise.resolve(new Response('', { status: 500 })));
 
-      expect(client.validateSession('dummy-session-token')).rejects.toThrowError(
-        'Internal Server Error (500)'
-      );
+      expect(client.me()).rejects.toThrowError('Internal Server Error (500)');
     });
   });
 
   describe('request password reset', () => {
-    it('posts the email to /customers/password/reset', () => {
-      expect(client.requestPasswordReset('john.doe@example.com')).resolves.toBe(undefined);
+    it('posts the email to /customers/password/reset', async () => {
+      await expect(client.requestPasswordReset('john.doe@example.com')).resolves.toBe(undefined);
       expect(mockRequest).toBeCalledWith(
         RequestMethod.POST,
         '/customers/password/reset',

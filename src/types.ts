@@ -18,7 +18,6 @@ export type CustomerProperties = ObjectProperties & {
   language: string;
   number: string;
   status: string;
-  session_token?: string;
   verified_email?: boolean;
   verified_at?: string;
   suspended?: boolean;
@@ -27,7 +26,3 @@ export type CustomerProperties = ObjectProperties & {
 };
 
 export type Customer<T extends CustomFields> = T & CustomerProperties;
-
-export type CurrentCustomer<T extends CustomFields> = Customer<T> & {
-  session_token: string;
-};

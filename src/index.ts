@@ -1,5 +1,5 @@
-import type { Object, Customer, CurrentCustomer } from './types';
+import type { Object, Customer } from './types';
 
 export { Client } from './client';
 
-export type { Object, Customer, CurrentCustomer };
+export type { Object, Customer };
