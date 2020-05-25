@@ -1,6 +1,7 @@
 import { request, RequestMethod, RequestOptions } from './request';
 import { CustomFields, Customer } from './types';
 import { Auth } from './auth';
+import { ApiError } from './errors';
 
 export type ClientOptions = {
   remember?: boolean;
@@ -39,7 +40,7 @@ export class Client {
     if (token != null) {
       return request(method, path, Object.assign({}, this.requestOptions, { token }), body);
     } else {
-      throw new Error('Could not authenticate.');
+      throw new ApiError(401, 'Unauthorized');
     }
   }
 
@@ -54,9 +55,11 @@ export class Client {
       } else {
         return Promise.resolve();
       }
+    } else if (response.status === 422) {
+      const { errors } = await response.json();
+      throw new ApiError(response.status, response.statusText, errors);
     } else {
-      // TODO: also handle 422 - Unprocessable Entity
-      throw new Error(`${response.statusText} (${response.status})`);
+      throw new ApiError(response.status, response.statusText);
     }
   }
 
@@ -91,9 +94,5 @@ export class Client {
 
   async logout(): Promise<void> {
     return this.auth.logout();
-  }
-
-  async requestPasswordReset(email: string): Promise<void> {
-    await this.post('/customers/password/reset', { email });
   }
 }

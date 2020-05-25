@@ -1,5 +1,6 @@
 import { request, RequestMethod, RequestOptions } from '../src/request';
 import { Client } from '../src/client';
+import { ApiError } from '../src/errors';
 
 jest.mock('../src/request');
 const mockRequest = (request as unknown) as jest.Mock<
@@ -124,6 +125,47 @@ describe('Client', () => {
           foo: 'bar',
         })
       );
+    });
+
+    it('it puts the errors on the Error object', async () => {
+      mockRequest.mockReturnValueOnce(
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              message: 'Validation Failed',
+              code: 142,
+              errors: [
+                {
+                  resource: 'Customer',
+                  code: 'custom',
+                  field: 'email',
+                  message: 'email is already taken',
+                },
+              ],
+            }),
+            {
+              status: 422,
+              statusText: 'Unprocessable Entity',
+            }
+          )
+        )
+      );
+
+      try {
+        await client.post('/', { email: 'user@example.com' });
+      } catch (error) {
+        expect(error).toBeInstanceOf(ApiError);
+        expect(error.status).toBe(422);
+        expect(error.statusText).toBe('Unprocessable Entity');
+        expect(error.errors.length).toBe(1);
+        expect(error.errors[0]).toMatchObject({
+          resource: 'Customer',
+          code: 'custom',
+          field: 'email',
+          message: 'email is already taken',
+        });
+      }
+      expect.assertions(5);
     });
   });
 
@@ -313,18 +355,6 @@ describe('Client', () => {
       mockRequest.mockReturnValueOnce(Promise.resolve(new Response('', { status: 500 })));
 
       expect(client.me()).rejects.toThrowError('Internal Server Error (500)');
-    });
-  });
-
-  describe('request password reset', () => {
-    it('posts the email to /customers/password/reset', async () => {
-      await expect(client.requestPasswordReset('john.doe@example.com')).resolves.toBe(undefined);
-      expect(mockRequest).toBeCalledWith(
-        RequestMethod.POST,
-        '/customers/password/reset',
-        expect.anything(),
-        JSON.stringify({ email: 'john.doe@example.com' })
-      );
     });
   });
 });
