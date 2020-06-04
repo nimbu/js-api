@@ -13,6 +13,11 @@ export type ClientOptions = {
 
 export type RequestBody = unknown;
 
+export type ClientResponse<T> = {
+  body: T;
+  headers: Headers;
+};
+
 export class Client {
   private auth: Auth;
   private requestOptions: RequestOptions;
@@ -44,16 +49,27 @@ export class Client {
     }
   }
 
-  request(method: RequestMethod.DELETE, path: string): Promise<void>;
-  request<T>(method: RequestMethod, path: string, body?: RequestBody): Promise<T>;
-  async request<T>(method: RequestMethod, path: string, body?: RequestBody): Promise<T | void> {
+  request(method: RequestMethod.DELETE, path: string): Promise<ClientResponse<void>>;
+  request<T>(method: RequestMethod, path: string, body?: RequestBody): Promise<ClientResponse<T>>;
+  async request<T>(
+    method: RequestMethod,
+    path: string,
+    body?: RequestBody
+  ): Promise<ClientResponse<T | void>> {
     const requestBody = body != null ? JSON.stringify(body) : undefined;
     const response = await this.fetch(method, path, requestBody);
     if (response.ok) {
       if (response.status !== 204) {
-        return response.json() as Promise<T>;
+        const body = (await response.json()) as T;
+        return {
+          body,
+          headers: response.headers,
+        };
       } else {
-        return Promise.resolve();
+        return {
+          body: undefined,
+          headers: response.headers,
+        };
       }
     } else if (response.status === 422) {
       const { errors } = await response.json();
@@ -63,23 +79,23 @@ export class Client {
     }
   }
 
-  get<T>(path: string): Promise<T> {
+  get<T>(path: string): Promise<ClientResponse<T>> {
     return this.request<T>(RequestMethod.GET, path);
   }
 
-  post<T>(path: string, body: RequestBody): Promise<T> {
+  post<T>(path: string, body: RequestBody): Promise<ClientResponse<T>> {
     return this.request<T>(RequestMethod.POST, path, body);
   }
 
-  put<T>(path: string, body: RequestBody): Promise<T> {
+  put<T>(path: string, body: RequestBody): Promise<ClientResponse<T>> {
     return this.request<T>(RequestMethod.PUT, path, body);
   }
 
-  patch<T>(path: string, body: RequestBody): Promise<T> {
+  patch<T>(path: string, body: RequestBody): Promise<ClientResponse<T>> {
     return this.request<T>(RequestMethod.PATCH, path, body);
   }
 
-  delete(path: string): Promise<void> {
+  delete(path: string): Promise<ClientResponse<void>> {
     return this.request(RequestMethod.DELETE, path);
   }
 
@@ -89,7 +105,8 @@ export class Client {
   }
 
   async me<T extends CustomFields>(): Promise<Customer<T>> {
-    return this.get<Customer<T>>('/customers/me');
+    const response = await this.get<Customer<T>>('/customers/me');
+    return response.body;
   }
 
   async logout(): Promise<void> {

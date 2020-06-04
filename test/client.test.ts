@@ -41,7 +41,7 @@ describe('Client', () => {
   it('gets the correct (parsed) value', async () => {
     const value = await client.get('/');
 
-    expect(value).toMatchObject({ id: 'mocked' });
+    expect(value.body).toMatchObject({ id: 'mocked' });
   });
 
   it('makes sure there is a fresh token', async () => {
@@ -258,7 +258,10 @@ describe('Client', () => {
         )
       );
 
-      await expect(client.request(RequestMethod.DELETE, '/')).resolves.toBe(undefined);
+      await expect(client.request(RequestMethod.DELETE, '/')).resolves.toMatchObject({
+        body: undefined,
+        headers: expect.anything(),
+      });
     });
 
     it('stringifies the body', async () => {
