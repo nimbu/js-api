@@ -4,6 +4,7 @@ import { Auth } from './auth';
 import { ApiError } from './errors';
 
 export type ClientOptions = {
+  name?: string;
   remember?: boolean;
   host?: string;
   site?: string;
@@ -31,6 +32,7 @@ export class Client {
         clientVersion: options.clientVersion,
       },
       remember: options.remember,
+      name: options.name,
     });
     this.requestOptions = {
       host: options.host,

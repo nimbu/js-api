@@ -4,6 +4,7 @@ import { Storage, sessionStorage, persistentStorage } from './storage';
 type AuthRequestOptions = Omit<RequestOptions, 'token' | 'site' | 'contentType'>;
 
 export type AuthOptions = {
+  name?: string;
   refreshToken?: string;
   scope?: string[];
   requestOptions?: AuthRequestOptions;
@@ -20,6 +21,7 @@ type AccessToken = {
 
 export class Auth {
   private clientId: string;
+  private name?: string;
   private requestOptions: AuthRequestOptions;
 
   // OAuth token related
@@ -43,14 +45,15 @@ export class Auth {
     this.sessionStorage = options?.sessionStorage || sessionStorage;
     this.persistentStorage = options?.persistentStorage || persistentStorage;
     this.remember = options?.remember || false;
+    this.name = options?.name;
   }
 
   private get sessionStorageKey(): string {
-    return `nimbu-${this.clientId}-oauth2`;
+    return `nimbu-${this.clientId}${this.name != null ? `-${this.name}` : ''}-oauth2`;
   }
 
   private get persistentStorageKey(): string {
-    return `nimbu-${this.clientId}-refresh`;
+    return `nimbu-${this.clientId}${this.name != null ? `-${this.name}` : ''}-refresh`;
   }
 
   private get needsRefresh(): boolean {
