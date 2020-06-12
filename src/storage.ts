@@ -6,13 +6,13 @@ export type Storage = {
 
 const webSessionStorage: Storage = {
   async setItem(key: string, value: string): Promise<void> {
-    window.sessionStorage.setItem(key, value);
+    globalThis.sessionStorage.setItem(key, value);
   },
   async getItem(key: string): Promise<string | null> {
-    return window.sessionStorage.getItem(key);
+    return globalThis.sessionStorage.getItem(key);
   },
   async removeItem(key: string): Promise<void> {
-    window.sessionStorage.removeItem(key);
+    globalThis.sessionStorage.removeItem(key);
   },
 };
 
@@ -28,18 +28,18 @@ const noopStorage: Storage = {
   },
 };
 
-export const sessionStorage: Storage = 'sessionStorage' in window ? webSessionStorage : noopStorage;
+export const sessionStorage: Storage = 'sessionStorage' in globalThis ? webSessionStorage : noopStorage;
 
 const localStorage: Storage = {
   async setItem(key: string, value: string): Promise<void> {
-    window.localStorage.setItem(key, value);
+    globalThis.localStorage.setItem(key, value);
   },
   async getItem(key: string): Promise<string | null> {
-    return window.localStorage.getItem(key);
+    return globalThis.localStorage.getItem(key);
   },
   async removeItem(key: string): Promise<void> {
-    window.localStorage.removeItem(key);
+    globalThis.localStorage.removeItem(key);
   },
 };
 
-export const persistentStorage: Storage = 'localStorage' in window ? localStorage : noopStorage;
+export const persistentStorage: Storage = 'localStorage' in globalThis ? localStorage : noopStorage;

@@ -5,6 +5,7 @@ type AuthRequestOptions = Omit<RequestOptions, 'token' | 'site' | 'contentType'>
 
 export type AuthOptions = {
   name?: string;
+  clientSecret?: string;
   refreshToken?: string;
   scope?: string[];
   requestOptions?: AuthRequestOptions;
@@ -21,6 +22,7 @@ type AccessToken = {
 
 export class Auth {
   private clientId: string;
+  private clientSecret?: string;
   private name?: string;
   private requestOptions: AuthRequestOptions;
 
@@ -39,6 +41,7 @@ export class Auth {
 
   constructor(clientId: string, options?: AuthOptions) {
     this.clientId = clientId;
+    this.clientSecret = options?.clientSecret;
     this.requestOptions = options?.requestOptions || {};
     this.refreshToken = options?.refreshToken;
     this.scope = options?.scope;
@@ -120,6 +123,9 @@ export class Auth {
     }
     const form = new FormData();
     form.append('client_id', this.clientId);
+    if(this.clientSecret != null) {
+      form.append('client_secret', this.clientSecret);
+    }
     form.append('grant_type', 'refresh_token');
     form.append('refresh_token', this.refreshToken);
     if (this.scope != null) {

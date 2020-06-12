@@ -5,6 +5,7 @@ import { ApiError } from './errors';
 
 export type ClientOptions = {
   name?: string;
+  clientSecret?: string;
   remember?: boolean;
   host?: string;
   site?: string;
@@ -33,6 +34,7 @@ export class Client {
       },
       remember: options.remember,
       name: options.name,
+      clientSecret: options.clientSecret,
     });
     this.requestOptions = {
       host: options.host,
