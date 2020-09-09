@@ -36,7 +36,7 @@ export class Auth {
   // Persistence
   private sessionStorage: Storage;
   private persistentStorage: Storage;
-  private remember: boolean;
+  private _remember: boolean;
   private restored = false;
 
   constructor(clientId: string, options?: AuthOptions) {
@@ -47,7 +47,7 @@ export class Auth {
     this.scope = options?.scope;
     this.sessionStorage = options?.sessionStorage || sessionStorage;
     this.persistentStorage = options?.persistentStorage || persistentStorage;
-    this.remember = options?.remember || false;
+    this._remember = options?.remember || false;
     this.name = options?.name;
   }
 
@@ -72,21 +72,23 @@ export class Auth {
 
   private async restore(): Promise<void> {
     if (!this.restored) {
-      if (this.sessionStorage != null) {
-        const json = await this.sessionStorage.getItem(this.sessionStorageKey);
-        if (json != null) {
-          const { accessToken, expiresAt, refreshToken, scope } = JSON.parse(json);
-          this.accessToken = accessToken;
-          this.expiresAt = expiresAt;
-          this.scope = this.scope || scope;
-          this.refreshToken = this.refreshToken || refreshToken;
-        } else if (this.refreshToken == null) {
-          // Try to restore at least the refreshToken
-          const refreshToken = await this.persistentStorage.getItem(this.persistentStorageKey);
-          if (this.refreshToken == null && refreshToken != null) {
-            this.refreshToken = refreshToken;
-          }
-        }
+      // Read refreshToken from persistentStorage
+      const refreshTokenFromPersistentStorage = await this.persistentStorage.getItem(
+        this.persistentStorageKey
+      );
+      if (refreshTokenFromPersistentStorage != null) {
+        // There was a refresh token in persistent storage -> use it + remember was true
+        this.refreshToken = refreshTokenFromPersistentStorage;
+        this._remember = true;
+      }
+      // Now read from the sessionStorage
+      const json = await this.sessionStorage.getItem(this.sessionStorageKey);
+      if (json != null) {
+        const { accessToken, expiresAt, refreshToken, scope } = JSON.parse(json);
+        this.accessToken = accessToken;
+        this.expiresAt = expiresAt;
+        this.scope = this.scope || scope;
+        this.refreshToken = this.refreshToken || refreshToken;
       }
     }
     this.restored = true;
@@ -111,7 +113,7 @@ export class Auth {
         })
       );
     }
-    if (this.remember && newRefreshToken && this.refreshToken != null) {
+    if (this._remember && newRefreshToken && this.refreshToken != null) {
       await this.persistentStorage.setItem(this.persistentStorageKey, this.refreshToken);
     }
   }
@@ -123,7 +125,7 @@ export class Auth {
     }
     const form = new FormData();
     form.append('client_id', this.clientId);
-    if(this.clientSecret != null) {
+    if (this.clientSecret != null) {
       form.append('client_secret', this.clientSecret);
     }
     form.append('grant_type', 'refresh_token');
@@ -153,7 +155,7 @@ export class Auth {
 
   async login(username: string, password: string, remember = false): Promise<boolean> {
     await this.restore();
-    this.remember = remember;
+    this._remember = remember;
     const form = new FormData();
     form.append('client_id', this.clientId);
     form.append('grant_type', 'password');
@@ -183,5 +185,9 @@ export class Auth {
       this.sessionStorage.removeItem(this.sessionStorageKey),
       this.persistentStorage.removeItem(this.persistentStorageKey),
     ]);
+  }
+
+  get remember(): boolean {
+    return this._remember;
   }
 }

@@ -116,4 +116,8 @@ export class Client {
   async logout(): Promise<void> {
     return this.auth.logout();
   }
+
+  get remember(): boolean {
+    return this.auth.remember;
+  }
 }
