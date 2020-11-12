@@ -1,6 +1,6 @@
 {
   "name": "@nimbu/api",
-  "version": "0.1.0-0",
+  "version": "0.1.0",
   "description": "A thin abstraction layer for the Nimbu API for modern browsers",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
