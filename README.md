@@ -1,5 +1,9 @@
 # Thin abstraction layer for the Nimbu API for modern browsers
 
+> [!WARNING]
+> **Deprecated.** This package is no longer maintained and receives no security updates.
+> Use the [Nimbu Go CLI](https://github.com/nimbu/cli) or call the Nimbu REST API directly.
+
 When we say "modern browsers" we mean a browser with:
 
 - `window.Promise`:
